@@ -172,3 +172,11 @@ To control a robot arm connected to an Nvidia Jetson device (Follower):
 - **`env: ‘photon’: No such file or directory`**: Ensure you have installed the package and your virtual environment is active (`source .venv/bin/activate`).
 - **Import Errors**: Ensure you are using a compatible version of `lerobot` and Python 3.10+.
 - **Robot Connection**: Check USB connections and permissions (`sudo chmod 666 /dev/ttyUSB*`).
+- **`Permission denied` in `.cache/uv`**: If you see this error on a remote machine (Brev), it means the cache is owned by root. Fix it by running:
+    ```bash
+    sudo chown -R $USER ~/.cache
+    ```
+    Or clear the cache:
+    ```bash
+    sudo rm -rf ~/.cache/uv
+    ```

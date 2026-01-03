@@ -310,7 +310,13 @@ def recording_mode(config: dict, auto_use: bool = False):
             leader_port = detect_arm_port("leader")
             config['leader_port'] = leader_port
         if not follower_port:
+            # Check if we have a saved remote IP configuration
+            # Or if the user explicitly wants to skip local detection (we could add a flag, but for now fallback is fine)
+            # Actually, let's try to be smarter: if we have a saved IP in known_ids or similar? No, standard config is port.
+            
+            # Try detection first
             follower_port = detect_arm_port("follower")
+            
             if not follower_port:
                 # Provide option for remote connection
                 if Confirm.ask(f"Could not find local {robot_type} follower. Connect to remote robot (IP)?", default=False):

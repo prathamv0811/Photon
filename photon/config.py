@@ -1,0 +1,241 @@
+"""
+Configuration utilities for Photon
+"""
+from typing import Optional, Tuple, TYPE_CHECKING, Dict, List
+import json
+import os
+import typer
+from photon.remote_client import RemoteRobotClientConfig
+
+# Define CONFIG_PATH directly
+CONFIG_DIR = os.path.expanduser('~/.photon')
+CONFIG_PATH = os.path.join(CONFIG_DIR, 'config.json')
+
+def load_config() -> dict:
+    """Load configuration from JSON file."""
+    if os.path.exists(CONFIG_PATH):
+        try:
+            with open(CONFIG_PATH, 'r') as f:
+                return json.load(f)
+        except json.JSONDecodeError:
+            return {}
+    return {}
+
+if TYPE_CHECKING:
+    from lerobot.scripts.lerobot_record import RecordConfig
+
+
+def validate_lerobot_config(config: dict) -> tuple[Optional[str], Optional[str], bool, bool, str]:
+    """
+    Extract and validate lerobot configuration from main config.
+    Returns: (leader_port, follower_port, leader_calibrated, follower_calibrated, robot_type)
+    """
+    lerobot_config = config.get('lerobot', {})
+    leader_port = lerobot_config.get('leader_port')
+    follower_port = lerobot_config.get('follower_port')
+    leader_calibrated = lerobot_config.get('leader_calibrated', False)
+    follower_calibrated = lerobot_config.get('follower_calibrated', False)
+    robot_type = lerobot_config.get('robot_type')
+    
+    return leader_port, follower_port, leader_calibrated, follower_calibrated, robot_type
+
+
+def save_lerobot_config(config: dict, arm_config: dict) -> None:
+    """Save lerobot configuration to config file."""
+    if 'lerobot' not in config:
+        config['lerobot'] = {}
+    config['lerobot'].update(arm_config)
+    
+    # Update server type
+    if 'server' not in config:
+        config['server'] = {}
+    config['server']['type'] = 'lerobot'
+    
+    # Save to file
+    os.makedirs(os.path.dirname(CONFIG_PATH), exist_ok=True)
+    with open(CONFIG_PATH, 'w') as f:
+        json.dump(config, f, indent=4)
+    
+    typer.echo(f"\nConfiguration saved to {CONFIG_PATH}")
+
+
+def get_known_ids(config: dict) -> Tuple[List[str], List[str]]:
+    """Return known leader and follower ids from config."""
+    lerobot_config = config.get('lerobot', {})
+    return lerobot_config.get('known_leader_ids', []), lerobot_config.get('known_follower_ids', [])
+
+
+def add_known_id(config: dict, arm_type: str, arm_id: str) -> None:
+    """Persist a discovered or chosen id for leader/follower in the config."""
+    if 'lerobot' not in config:
+        config['lerobot'] = {}
+    key = 'known_leader_ids' if arm_type == 'leader' else 'known_follower_ids'
+    existing: List[str] = config['lerobot'].get(key, [])
+    if arm_id and arm_id not in existing:
+        existing.append(arm_id)
+        config['lerobot'][key] = existing
+        # Save immediately to disk without changing other fields
+        with open(CONFIG_PATH, 'w') as f:
+            json.dump(config, f, indent=4)
+
+
+def get_robot_config_classes(robot_type: str) -> Tuple[Optional[type], Optional[type]]:
+    """
+    Get the appropriate config classes for leader and follower.
+    Strictly supports SO101 for distributed communication.
+    """
+    if robot_type == "so101":
+        from lerobot.teleoperators.so101_leader import SO101LeaderConfig
+        from lerobot.robots.so101_follower import SO101FollowerConfig
+        return SO101LeaderConfig, SO101FollowerConfig
+    else:
+        # Fallback or strict enforcement
+        from lerobot.teleoperators.so101_leader import SO101LeaderConfig
+        from lerobot.robots.so101_follower import SO101FollowerConfig
+        return SO101LeaderConfig, SO101FollowerConfig
+
+
+def normalize_fps(requested_fps: float) -> int:
+    """
+    Normalize FPS to common supported values.
+    Defaults to 30 FPS (most widely supported) unless specifically close to 60.
+    """
+    # Round to clean integer first
+    fps_int = round(requested_fps)
+    
+    # If very close to 60, use 60 FPS
+    if fps_int >= 55:
+        return 60
+    # Otherwise default to 30 FPS (most compatible)
+    else:
+        return 30
+
+
+def build_camera_configuration(camera_config: Dict) -> Dict:
+    """
+    Build camera configuration dictionary from camera_config
+    Returns cameras_dict for robot configuration
+    """
+    if not camera_config or not camera_config.get('enabled', False):
+        return {}
+    
+    # Import camera configuration classes
+    from lerobot.cameras.opencv.configuration_opencv import OpenCVCameraConfig
+    from lerobot.cameras.realsense.configuration_realsense import RealSenseCameraConfig
+    
+    cameras_dict = {}
+    for cam in camera_config.get('cameras', []):
+        camera_name = cam['angle']  # Use angle as camera name
+        cam_info = cam['camera_info']
+        
+        # Create camera config based on type
+        if cam['camera_type'] == 'OpenCV':
+            stream_profile = cam_info.get('default_stream_profile') or {}
+            requested_fps = stream_profile.get('fps', 30)
+            # Normalize FPS to avoid hardware mismatch issues
+            normalized_fps = normalize_fps(requested_fps)
+            
+            cameras_dict[camera_name] = OpenCVCameraConfig(
+                index_or_path=cam_info.get('id', 0),
+                width=stream_profile.get('width', 640),
+                height=stream_profile.get('height', 480),
+                fps=normalized_fps
+            )
+        elif cam['camera_type'] == 'RealSense':
+            stream_profile = cam_info.get('default_stream_profile') or {}
+            requested_fps = stream_profile.get('fps', 30)
+            # Normalize FPS to avoid hardware mismatch issues  
+            normalized_fps = normalize_fps(requested_fps)
+            
+            cameras_dict[camera_name] = RealSenseCameraConfig(
+                serial_number_or_name=str(cam_info.get('id', '')),
+                width=stream_profile.get('width', 640),
+                height=stream_profile.get('height', 480),
+                fps=normalized_fps
+            )
+    
+    return cameras_dict
+
+
+def create_follower_config(
+    follower_config_class,
+    follower_port: str,
+    robot_type: str,
+    camera_config: Dict = None,
+    follower_id: Optional[str] = None,
+):
+    """
+    Create follower configuration with optional camera support
+    """
+    cameras_dict = build_camera_configuration(camera_config or {})
+    
+    if cameras_dict:
+        if robot_type == "lekiwi":
+             # LeKiwi Client uses remote_ip instead of port
+             return follower_config_class(
+                remote_ip=follower_port,
+                id=follower_id or f"{robot_type}_follower",
+                cameras=cameras_dict
+            )
+        if "remote_ip" in str(follower_port) or (isinstance(follower_port, str) and "." in follower_port and follower_port.replace(".", "").isdigit()): # Very basic IP check
+             # If follower_port looks like an IP, use RemoteRobotClientConfig
+             # We assume port is standard ZMQ ports (5555/5556) unless specified otherwise.
+             # LeKiwiClientConfig init takes (remote_ip, port_zmq_cmd, port_zmq_observations...)
+             
+             return RemoteRobotClientConfig(
+                 remote_ip=follower_port,
+                 id=follower_id or f"{robot_type}_follower",
+                 cameras=cameras_dict
+             )
+
+        return follower_config_class(
+            port=follower_port,
+            id=follower_id or f"{robot_type}_follower",
+            cameras=cameras_dict
+        )
+    else:
+        if robot_type == "lekiwi":
+             return follower_config_class(remote_ip=follower_port, id=follower_id or f"{robot_type}_follower")
+        
+        # Check for IP
+        if isinstance(follower_port, str) and "." in follower_port and follower_port.replace(".", "").isdigit():
+             return RemoteRobotClientConfig(
+                 remote_ip=follower_port,
+                 id=follower_id or f"{robot_type}_follower"
+             )
+
+        return follower_config_class(port=follower_port, id=follower_id or f"{robot_type}_follower")
+
+
+def create_robot_configs(
+    robot_type: str,
+    leader_port: str,
+    follower_port: str,
+    camera_config: Dict = None,
+    leader_id: Optional[str] = None,
+    follower_id: Optional[str] = None,
+) -> tuple[Optional[object], Optional[object]]:
+    """
+    Create leader and follower configurations for given robot type.
+    Returns: (leader_config, follower_config)
+    """
+    leader_config_class, follower_config_class = get_robot_config_classes(robot_type)
+    
+    if follower_config_class is None:
+        typer.echo(f"❌ Unsupported robot type: {robot_type}")
+        return None, None
+    
+    if leader_config_class:
+        leader_config = leader_config_class(port=leader_port, id=leader_id or f"{robot_type}_leader")
+    else:
+        leader_config = None
+        
+    follower_config = create_follower_config(
+        follower_config_class,
+        follower_port,
+        robot_type,
+        camera_config,
+        follower_id=follower_id,
+    )
+    
+    return leader_config, follower_config

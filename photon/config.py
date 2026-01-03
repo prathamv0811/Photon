@@ -5,7 +5,6 @@ from typing import Optional, Tuple, TYPE_CHECKING, Dict, List
 import json
 import os
 import typer
-from photon.remote_client import RemoteRobotClientConfig
 
 # Define CONFIG_PATH directly
 CONFIG_DIR = os.path.expanduser('~/.photon')
@@ -178,11 +177,11 @@ def create_follower_config(
                 cameras=cameras_dict
             )
         if "remote_ip" in str(follower_port) or (isinstance(follower_port, str) and "." in follower_port and follower_port.replace(".", "").isdigit()): # Very basic IP check
-             # If follower_port looks like an IP, use RemoteRobotClientConfig
+             # If follower_port looks like an IP, use valid registered LeKiwiClientConfig
              # We assume port is standard ZMQ ports (5555/5556) unless specified otherwise.
-             # LeKiwiClientConfig init takes (remote_ip, port_zmq_cmd, port_zmq_observations...)
+             from lerobot.robots.lekiwi.config_lekiwi import LeKiwiClientConfig
              
-             return RemoteRobotClientConfig(
+             return LeKiwiClientConfig(
                  remote_ip=follower_port,
                  id=follower_id or f"{robot_type}_follower",
                  cameras=cameras_dict
@@ -199,7 +198,8 @@ def create_follower_config(
         
         # Check for IP
         if isinstance(follower_port, str) and "." in follower_port and follower_port.replace(".", "").isdigit():
-             return RemoteRobotClientConfig(
+             from lerobot.robots.lekiwi.config_lekiwi import LeKiwiClientConfig
+             return LeKiwiClientConfig(
                  remote_ip=follower_port,
                  id=follower_id or f"{robot_type}_follower"
              )

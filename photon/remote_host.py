@@ -105,15 +105,20 @@ class RobotHost:
                 serialized_obs = {}
                 
                 for key, value in last_observation.items():
-                    if isinstance(value, np.ndarray) and value.ndim == 3: # Image
+                    # Detect images: typically uint8 arrays with 3 dimensions (H, W, C)
+                    # or keys that are known to be cameras (but we might not know keys strictly here)
+                    if isinstance(value, np.ndarray) and value.ndim == 3 and value.dtype == np.uint8:
                          # Encode images to base64
                         ret, buffer = cv2.imencode(
                             ".jpg", value, [int(cv2.IMWRITE_JPEG_QUALITY), 90]
                         )
                         if ret:
                             serialized_obs[key] = base64.b64encode(buffer).decode("utf-8")
+                        else:
+                            serialized_obs[key] = ""
                     elif isinstance(value, np.ndarray):
-                         # Convert other numpy arrays to list
+                         # Convert other numpy arrays to list or keep as is if JSON serializer can handle it?
+                         # Standard JSON can't handle numpy, so tolist() is safer.
                          serialized_obs[key] = value.tolist()
                     else:
                          serialized_obs[key] = value

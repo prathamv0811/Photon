@@ -147,6 +147,7 @@ def train(
         console.print("\n   # Clone and install Photon")
         console.print("   git clone https://github.com/prathamv0811/Photon.git")
         console.print("   cd Photon")
+        console.print("   sudo apt install python3.10-venv")
         console.print("   python3 -m venv .venv")
         console.print("   source .venv/bin/activate")
         console.print("   pip install -e .")

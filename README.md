@@ -15,7 +15,16 @@ Photon CLI manages distributed robotic setups, enabling teleoperation between a 
 
 ```bash
 git clone https://github.com/prathamv0811/Photon.git
-cd photon-cli
+cd Photon
+
+# Install venv (Ubuntu/Debian)
+sudo apt install python3.10-venv
+
+# Create and activate venv
+python3 -m venv .venv
+source .venv/bin/activate
+
+# Install Photon
 pip install -e .
 ```
 

@@ -14,8 +14,8 @@ Photon is a command-line interface for distributed robotic communication, data c
 ## Installation
 
 ### Prerequisites
-- Python 3.10+ (Recommended: 3.12)
-- `uv` package manager (recommended) or `pip`
+- Python 3.10+
+- `pip`
 
 ### Enable Auto-completion
 
@@ -24,23 +24,31 @@ To get tab completion for commands and options (Bash, Zsh, Fish, PowerShell):
 ```bash
 photon --install-completion
 ```
-*Note: You may need to restart your shell for changes to take effect.*
 
-### Install with uv (Recommended)
-
+**To apply changes immediately without restarting:**
 ```bash
-git clone https://github.com/prathamv0811/Photon.git
-cd photon-cli
-uv venv --python 3.12
-source .venv/bin/activate
-uv pip install -e .
+source ~/.bashrc  # For Bash
+# OR
+source ~/.zshrc   # For Zsh
 ```
 
-### Install with pip
+### Installation
 
 ```bash
+# 1. Install venv support (Ubuntu/Debian)
+sudo apt install python3.10-venv
+
+# 2. Clone the repository
 git clone https://github.com/prathamv0811/Photon.git
-cd photon-cli
+cd Photon
+
+# 3. Create a virtual environment
+python3 -m venv .venv
+
+# 4. Activate the environment
+source .venv/bin/activate
+
+# 5. Install Photon
 pip install -e .
 ```
 

@@ -38,16 +38,19 @@ cd Photon
 **ALWAYS** use a virtual environment. Never install directly to the system python.
 
 ```bash
-# 1. Create a virtual environment
+# 1. Install venv (if missing)
+sudo apt install python3.10-venv
+
+# 2. Create a virtual environment
 python3 -m venv .venv
 
-# 2. Activate the environment
+# 3. Activate the environment
 source .venv/bin/activate
 
-# 3. Upgrade pip (optional but recommended)
+# 4. Upgrade pip (optional but recommended)
 pip install --upgrade pip
 
-# 4. Install Photon in editable mode
+# 5. Install Photon in editable mode
 pip install -e .
 ```
 
@@ -77,6 +80,7 @@ git clone https://github.com/prathamv0811/Photon.git
 cd Photon
 
 # 3. Setup Venv & Install
+sudo apt install python3.10-venv
 python3 -m venv .venv
 source .venv/bin/activate
 pip install -e .
@@ -101,6 +105,7 @@ sudo rm -rf ~/.cache/uv
 sudo chown -R $USER ~/.cache
 
 # 3. Create fresh venv (WITHOUT SUDO)
+sudo  apt install python3.10-venv
 python3 -m venv .venv
 source .venv/bin/activate
 

@@ -104,7 +104,9 @@ photon train --compute brev
 3.  **Remote Setup**: Once connected, it provides commands to run on the remote machine:
     ```bash
     git clone https://github.com/prathamv0811/Photon.git
-    cd photon-cli
+    cd Photon
+    python3 -m venv .venv
+    source .venv/bin/activate
     pip install -e .
     photon train
     ```

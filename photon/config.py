@@ -178,7 +178,7 @@ def create_follower_config(
             )
         if "remote_ip" in str(follower_port) or (isinstance(follower_port, str) and "." in follower_port and follower_port.replace(".", "").isdigit()): # Very basic IP check
              # If follower_port looks like an IP, use valid registered SO101RemoteClientConfig
-             from photon.so101_client import SO101RemoteClientConfig
+             from photon.so101_remote_client import SO101RemoteClientConfig
              
              return SO101RemoteClientConfig(
                  remote_ip=follower_port,

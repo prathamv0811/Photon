@@ -409,7 +409,20 @@ def recording_mode(config: dict, auto_use: bool = False):
         num_episodes = int(Prompt.ask("Total number of episodes to record", default="50"))
 
         # Setup cameras
-        camera_config = setup_cameras()
+        # Check if we are using a remote follower (IP address)
+        is_remote_follower = False
+        if follower_port:
+             # Basic check if it looks like an IP or user said so
+             if "." in str(follower_port) and str(follower_port).replace(".", "").isdigit():
+                 is_remote_follower = True
+             elif "localhost" in str(follower_port):
+                 is_remote_follower = True
+                 
+        if is_remote_follower:
+            from photon.cameras import setup_remote_cameras
+            camera_config = setup_remote_cameras()
+        else:
+            camera_config = setup_cameras()
 
     # Save configuration before execution (if not using preconfigured settings)
     if not preconfigured:

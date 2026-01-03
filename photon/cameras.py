@@ -219,3 +219,66 @@ def setup_cameras() -> Dict:
     camera_config = setup_camera_mapping(cameras)
     
     return camera_config
+
+
+def setup_remote_cameras() -> Dict:
+    """
+    Setup workflow for remote cameras (hosted on the follower robot).
+    Does NOT detect local cameras. Instead, asks user for the configuration
+    expected from the remote stream.
+    """
+    typer.echo("\n📷 Remote Camera Configuration")
+    typer.echo("Since the robot is remote, we cannot auto-detect cameras.")
+    typer.echo("Please specify the cameras connected to the REMOTE robot.")
+    
+    while True:
+        try:
+            num_cameras = int(Prompt.ask("How many cameras are connected to the remote robot?", default="1"))
+            if num_cameras >= 0:
+                break
+            typer.echo("❌ Please enter a non-negative number.")
+        except ValueError:
+            typer.echo("❌ Invalid input. Please enter a number.")
+            
+    if num_cameras == 0:
+        return {'enabled': False, 'cameras': []}
+
+    remote_cameras = []
+    for i in range(num_cameras):
+        typer.echo(f"\nConfiguration for Remote Camera #{i}")
+        # Default keys usually camera_0, camera_1 etc from LeRobot/SO101Host
+        # But here we are defining the "angle" which becomes the key in the dataset.
+        angle = Prompt.ask(f"Enter name/angle for Camera #{i} (e.g. front, main, wrist)", default=f"laptop")
+        
+        # We assume the remote host streams images with keys matching these angles 
+        # OR we map them standardly.
+        # SO101RemoteClient uses config.cameras keys to look up in ZMQ dict.
+        # So we really need to know what keys the SERVER sends.
+        # Standard LeKiwi/SO101Host sends keys like '/dev/video0' or 'camera_0'.
+        # Actually, let's look at remote_host.py: it sends `cam_id` as key!
+        # And `cam_id` usually is the device path like /dev/video0.
+        
+        # So we should ask user for the DEVICE PATH or ID on the remote machine if possible.
+        remote_id = Prompt.ask(f"Enter remote device path/id for Camera #{i}", default=f"/dev/video{i}")
+        
+        remote_cameras.append({
+            'camera_id': remote_id, 
+            'camera_type': 'Remote',
+            'angle': angle.lower(),
+            'camera_info': {
+                'name': f"Remote Camera {i}",
+                'type': 'Remote',
+                'id': remote_id,
+                'default_stream_profile': {
+                     'width': 640,
+                     'height': 480,
+                     'fps': 30
+                }
+            }
+        })
+
+    return {
+        'enabled': True,
+        'cameras': remote_cameras
+    }
+

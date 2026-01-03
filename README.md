@@ -66,4 +66,4 @@ photon train --compute brev
 
 ## Configuration
 Configuration is stored in `~/.photon/config.json`.
-Port detection is automatic.
+Port detection is automatic.# Photon

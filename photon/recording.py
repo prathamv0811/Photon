@@ -311,6 +311,10 @@ def recording_mode(config: dict, auto_use: bool = False):
             config['leader_port'] = leader_port
         if not follower_port:
             follower_port = detect_arm_port("follower")
+            if not follower_port:
+                # Provide option for remote connection
+                if Confirm.ask(f"Could not find local {robot_type} follower. Connect to remote robot (IP)?", default=False):
+                    follower_port = Prompt.ask(f"Enter {robot_type} IP address")
             config['follower_port'] = follower_port
         
         # Select ids

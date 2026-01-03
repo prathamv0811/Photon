@@ -4,7 +4,7 @@ setup(
     name="photon-cli",
     version="0.1.0",
     author="Pratham Jain",
-    author_email="prathamjain@example.com",
+    author_email="princecrronaldo64@gmail.com",
     description="Distributed Robotic Communication CLI",
     long_description="# Photon\n\nDistributed communication for robots.",
     long_description_content_type="text/markdown",

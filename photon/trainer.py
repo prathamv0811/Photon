@@ -278,7 +278,7 @@ def train(cfg: TrainPipelineConfig, accelerator: Accelerator | None = None):
     # Load precomputed SARM progress for RA-BC if enabled
     # Generate progress using: src/lerobot/policies/sarm/compute_rabc_weights.py
     rabc_weights = None
-    if cfg.use_rabc:
+    if getattr(cfg, "use_rabc", False):
         from lerobot.utils.rabc import RABCWeights
 
         # Get chunk_size from policy config

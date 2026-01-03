@@ -5,6 +5,7 @@ import base64
 import json
 import logging
 from dataclasses import dataclass, field
+from functools import cached_property
 from typing import Any, Dict
 
 import cv2
@@ -14,6 +15,7 @@ import zmq
 from lerobot.common.robot_devices.robots.config import RobotConfig
 from lerobot.common.robot_devices.cameras.configs import CameraConfig
 from lerobot.common.robot_devices.robots.robot import Robot
+from lerobot.common.utils.utils import init_logging
 
 # Config for SO101 Remote Client
 @RobotConfig.register_subclass("so101_remote_client")
@@ -29,17 +31,29 @@ class SO101RemoteClientConfig(RobotConfig):
     
     polling_timeout_ms: int = 15
     connect_timeout_s: int = 5
+    
+    # Matching SO101 features, though used remotely
+    use_degrees: bool = False
 
 
 class SO101RemoteClient(Robot):
     """
     Client to control a remote SO101 robot over ZMQ.
+    Mimics SO101Follower features for potential recording compatibility.
     """
+    config_class = SO101RemoteClientConfig
+    name = "so101_remote_client"
     
     def __init__(self, config: SO101RemoteClientConfig):
+        super().__init__(config)
         self.config = config
-        # robot.py expects cameras dict
-        self.cameras = config.cameras
+        self.cameras = config.cameras # This is sufficient for Robot base class to know about cameras? 
+        # Actually Robot base class expects self.cameras to be initialized objects if we use them locally.
+        # But here they are remote. However, lerobot recorder might check them.
+        # LeKiwiClient did `self.cameras = make_cameras_from_configs(config.cameras)` but those are local cameras.
+        # We probably don't want to instantiate local cameras for a remote client.
+        # LeKiwi example code simply used `self.cameras` as properties or from config.
+        # Let's assume for now we don't need local camera objects, just feature definitions.
         
         self.remote_ip = config.remote_ip
         self.port_cmd = config.port_zmq_cmd
@@ -47,12 +61,9 @@ class SO101RemoteClient(Robot):
         self.connect_timeout_s = config.connect_timeout_s
         self.polling_timeout_ms = config.polling_timeout_ms
 
-        self.zmq_context = zmq.Context()
-        self.zmq_cmd_socket = self.zmq_context.socket(zmq.PUSH)
-        self.zmq_cmd_socket.setsockopt(zmq.CONFLATE, 1)
-
-        self.zmq_observation_socket = self.zmq_context.socket(zmq.PULL)
-        self.zmq_observation_socket.setsockopt(zmq.CONFLATE, 1)
+        self.zmq_context = None
+        self.zmq_cmd_socket = None
+        self.zmq_observation_socket = None
 
         self._is_connected = False
         self.last_observation = None
@@ -61,9 +72,52 @@ class SO101RemoteClient(Robot):
         self.last_frames = {}
         self.last_remote_state = {}
 
+    @property
+    def encoded_motors(self):
+        # SO101 standard motors
+        return [
+            "shoulder_pan",
+            "shoulder_lift",
+            "elbow_flex",
+            "wrist_flex",
+            "wrist_roll",
+            "gripper"
+        ]
+
+    @property
+    def _motors_ft(self) -> dict[str, type]:
+        return {f"{motor}.pos": float for motor in self.encoded_motors}
+
+    @property
+    def _cameras_ft(self) -> dict[str, tuple]:
+        return {
+            name: (cfg.height, cfg.width, 3) for name, cfg in self.config.cameras.items()
+        }
+
+    @cached_property
+    def observation_features(self) -> dict[str, type | tuple]:
+        return {**self._motors_ft, **self._cameras_ft}
+
+    @cached_property
+    def action_features(self) -> dict[str, type]:
+        return self._motors_ft
+
+    @property
+    def is_connected(self) -> bool:
+        return self._is_connected
+
     def connect(self):
         logging.info(f"Connecting to remote SO101 at {self.remote_ip}...")
+        self.zmq_context = zmq.Context()
+        
+        # CMD Socket (PUSH)
+        self.zmq_cmd_socket = self.zmq_context.socket(zmq.PUSH)
+        self.zmq_cmd_socket.setsockopt(zmq.CONFLATE, 1)
         self.zmq_cmd_socket.connect(f"tcp://{self.remote_ip}:{self.port_cmd}")
+        
+        # OBS Socket (PULL)
+        self.zmq_observation_socket = self.zmq_context.socket(zmq.PULL)
+        self.zmq_observation_socket.setsockopt(zmq.CONFLATE, 1)
         self.zmq_observation_socket.connect(f"tcp://{self.remote_ip}:{self.port_obs}")
         
         # Wait for first observation to confirm connection
@@ -90,13 +144,10 @@ class SO101RemoteClient(Robot):
         if not self._is_connected:
              raise RuntimeError("Not connected")
              
-        # Convert numpy actions to list for JSON serialization if needed
-        # SO101 actions are usually just numpy arrays, but we send as JSON keys
+        # SO101 actions are usually just numpy arrays, but we send as JSON keys/values
+        # The host expects the same dictionary format as 'action'
         action_json = {}
         
-        # Handle simple action structure
-        # actions is often a dict with 'action': np.array or separate joint keys
-        # We assume standard dictionary passing
         for k, v in action.items():
             if isinstance(v, np.ndarray):
                 action_json[k] = v.tolist()
@@ -113,23 +164,28 @@ class SO101RemoteClient(Robot):
              
         # Poll for latest message
         try:
-            msg = self.zmq_observation_socket.recv_string(zmq.NOBLOCK)
             # Drain queue to get latest
-            while True:
-                try:
-                   msg = self.zmq_observation_socket.recv_string(zmq.NOBLOCK)
-                except zmq.Again:
-                    break
-                    
+            msg = None
+            try:
+                # Try to read multiple times to get the very last one
+                while True:
+                    msg = self.zmq_observation_socket.recv_string(zmq.NOBLOCK)
+            except zmq.Again:
+                pass
+            
+            # If we didn't get any message in the drain loop, wait for one
+            if msg is None:
+                msg = self.zmq_observation_socket.recv_string(zmq.NOBLOCK)
+
             data = json.loads(msg)
             
             processed_obs = {}
             frames = {}
             
             for k, v in data.items():
-                 # Detect if this key matches a known camera
+                 # Check if key is a configured camera
                  if k in self.config.cameras:
-                     if isinstance(v, str) and len(v) > 100: # Base64 image
+                     if isinstance(v, str) and len(v) > 0: # Base64 image
                          try:
                              jpg_data = base64.b64decode(v)
                              np_arr = np.frombuffer(jpg_data, dtype=np.uint8)
@@ -137,18 +193,23 @@ class SO101RemoteClient(Robot):
                              if frame is not None:
                                  frames[k] = frame
                              else:
-                                 frames[k] = np.zeros((480, 640, 3), dtype=np.uint8)
-                         except:
-                             frames[k] = v
+                                 # Fallback empty frame matching config dim
+                                 h, w = self.config.cameras[k].height, self.config.cameras[k].width
+                                 frames[k] = np.zeros((h, w, 3), dtype=np.uint8)
+                         except Exception as e:
+                             logging.error(f"Error decoding image {k}: {e}")
+                             h, w = self.config.cameras[k].height, self.config.cameras[k].width
+                             frames[k] = np.zeros((h, w, 3), dtype=np.uint8)
                      else:
-                        frames[k] = v
+                        # Maybe empty string or failed encoding
+                        h, w = self.config.cameras[k].height, self.config.cameras[k].width
+                        frames[k] = np.zeros((h, w, 3), dtype=np.uint8)
                  elif isinstance(v, list):
                      processed_obs[k] = np.array(v, dtype=np.float32)
                  else:
                      processed_obs[k] = v
             
             # Merge frames and state data
-            # Robot class usually expects a unified dictionary
             full_obs = {**processed_obs, **frames}
             
             self.last_observation = full_obs
@@ -159,9 +220,6 @@ class SO101RemoteClient(Robot):
                 return self.last_observation
             # Only if totally empty
             return {} 
-    
-    def teleop_step(self, record_data=False):
-        pass
-        
+            
     def capture_observation(self):
         return self.get_observation()

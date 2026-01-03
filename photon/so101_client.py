@@ -12,10 +12,10 @@ import cv2
 import numpy as np
 import zmq
 
-from lerobot.common.robot_devices.robots.config import RobotConfig
-from lerobot.common.robot_devices.cameras.configs import CameraConfig
-from lerobot.common.robot_devices.robots.robot import Robot
-from lerobot.common.utils.utils import init_logging
+from lerobot.robots.config import RobotConfig
+from lerobot.cameras.configs import CameraConfig
+from lerobot.robots.robot import Robot
+from lerobot.utils.utils import init_logging
 
 # Config for SO101 Remote Client
 @RobotConfig.register_subclass("so101_remote_client")

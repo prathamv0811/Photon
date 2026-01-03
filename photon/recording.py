@@ -310,17 +310,30 @@ def recording_mode(config: dict, auto_use: bool = False):
             leader_port = detect_arm_port("leader")
             config['leader_port'] = leader_port
         if not follower_port:
-            # Check if we have a saved remote IP configuration
-            # Or if the user explicitly wants to skip local detection (we could add a flag, but for now fallback is fine)
-            # Actually, let's try to be smarter: if we have a saved IP in known_ids or similar? No, standard config is port.
+            # Check connectivity type to avoid unnecessary detection for wireless users
+            # Default to local if not specified, but ask the user.
+            typer.echo("\n🤖 Follower Robot Connection")
+            is_remote = False
+            # If default robot_type is lekiwi, it's always remote/ip
+            if robot_type == "lekiwi":
+                is_remote = True
+            else:
+                 # Ask user
+                 conn_type = Prompt.ask("Is the follower arm Local (USB) or Remote (WiFi)?", choices=["local", "remote"], default="local")
+                 if conn_type == "remote":
+                     is_remote = True
             
-            # Try detection first
-            follower_port = detect_arm_port("follower")
-            
-            if not follower_port:
-                # Provide option for remote connection
-                if Confirm.ask(f"Could not find local {robot_type} follower. Connect to remote robot (IP)?", default=False):
-                    follower_port = Prompt.ask(f"Enter {robot_type} IP address")
+            if is_remote:
+                 follower_port = Prompt.ask(f"Enter {robot_type} IP address")
+            else:
+                # Local detection
+                follower_port = detect_arm_port("follower")
+                
+                # Fallback if local detection fails
+                if not follower_port:
+                    if Confirm.ask(f"Could not find local {robot_type} follower. Connect to remote robot (IP)?", default=False):
+                        follower_port = Prompt.ask(f"Enter {robot_type} IP address")
+                        
             config['follower_port'] = follower_port
         
         # Select ids

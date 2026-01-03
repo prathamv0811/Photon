@@ -84,3 +84,26 @@ pip install -e .
 # 4. Success message
 echo "✅ Setup Complete! Run 'photon train' to start."
 ```
+
+## Troubleshooting: Clean Re-install
+
+If you see `Permission denied` errors (like `__init__.py`) during installation, your virtual environment is likely corrupted with root-owned files.
+
+**Fix it by deleting and re-creating the environment:**
+
+```bash
+# 1. Deactivate current environment
+deactivate 2>/dev/null
+
+# 2. Delete the broken .venv and cache
+sudo rm -rf .venv
+sudo rm -rf ~/.cache/uv
+sudo chown -R $USER ~/.cache
+
+# 3. Create fresh venv (WITHOUT SUDO)
+python3 -m venv .venv
+source .venv/bin/activate
+
+# 4. Install again
+pip install -e .
+```

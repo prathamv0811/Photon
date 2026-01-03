@@ -20,7 +20,7 @@ Photon is a command-line interface for distributed robotic communication, data c
 ### Install with uv (Recommended)
 
 ```bash
-git clone https://github.com/prathamv0811/photon-cli.git
+git clone https://github.com/prathamv0811/Photon.git
 cd photon-cli
 uv venv --python 3.12
 source .venv/bin/activate
@@ -30,7 +30,7 @@ uv pip install -e .
 ### Install with pip
 
 ```bash
-git clone https://github.com/prathamv0811/photon-cli.git
+git clone https://github.com/prathamv0811/Photon.git
 cd photon-cli
 pip install -e .
 ```
@@ -103,7 +103,7 @@ photon train --compute brev
 2.  **Login & Connect**: It handles Brev CLI login and connection.
 3.  **Remote Setup**: Once connected, it provides commands to run on the remote machine:
     ```bash
-    git clone https://github.com/GetSoloTech/photon-cli.git
+    git clone https://github.com/prathamv0811/Photon.git
     cd photon-cli
     pip install -e .
     photon train

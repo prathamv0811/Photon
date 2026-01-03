@@ -145,7 +145,7 @@ def train(
         console.print("1. The CLI will open a shell to your remote machine.")
         console.print("2. Once connected, run these commands to set up Photon:")
         console.print("\n   # Clone and install Photon")
-        console.print("   git clone https://github.com/GetSoloTech/photon-cli.git")
+        console.print("   git clone https://github.com/prathamv0811/Photon.git")
         console.print("   cd photon-cli")
         console.print("   pip install -e .")
         console.print("\n   # Start Training")

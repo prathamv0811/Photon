@@ -14,7 +14,7 @@ Photon CLI manages distributed robotic setups, enabling teleoperation between a 
 ## Installation
 
 ```bash
-git clone https://github.com/GetSoloTech/photon-cli.git
+git clone https://github.com/prathamv0811/Photon.git
 cd photon-cli
 pip install -e .
 ```
@@ -66,4 +66,4 @@ photon train --compute brev
 
 ## Configuration
 Configuration is stored in `~/.photon/config.json`.
-Port detection is automatic.# Photon
+Port detection is automatic.

@@ -177,11 +177,10 @@ def create_follower_config(
                 cameras=cameras_dict
             )
         if "remote_ip" in str(follower_port) or (isinstance(follower_port, str) and "." in follower_port and follower_port.replace(".", "").isdigit()): # Very basic IP check
-             # If follower_port looks like an IP, use valid registered LeKiwiClientConfig
-             # We assume port is standard ZMQ ports (5555/5556) unless specified otherwise.
-             from lerobot.robots.lekiwi.config_lekiwi import LeKiwiClientConfig
+             # If follower_port looks like an IP, use valid registered SO101RemoteClientConfig
+             from photon.so101_client import SO101RemoteClientConfig
              
-             return LeKiwiClientConfig(
+             return SO101RemoteClientConfig(
                  remote_ip=follower_port,
                  id=follower_id or f"{robot_type}_follower",
                  cameras=cameras_dict
@@ -198,8 +197,8 @@ def create_follower_config(
         
         # Check for IP
         if isinstance(follower_port, str) and "." in follower_port and follower_port.replace(".", "").isdigit():
-             from lerobot.robots.lekiwi.config_lekiwi import LeKiwiClientConfig
-             return LeKiwiClientConfig(
+             from photon.so101_client import SO101RemoteClientConfig
+             return SO101RemoteClientConfig(
                  remote_ip=follower_port,
                  id=follower_id or f"{robot_type}_follower"
              )

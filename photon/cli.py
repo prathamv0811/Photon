@@ -62,18 +62,7 @@ def host(
     config = load_config()
     run_serve_robot(config, auto_use)
 
-@app.command()
-def client(
-    auto_use: bool = typer.Option(False, "--yes", "-y", help="Automatically use saved settings"),
-):
-    """
-    Start the leader arm client (Teleoperation mode).
-    """
-    console.print("🎮 Starting Photon Client (Leader Teleoperation)...")
-    from photon.config import load_config
-    from photon.teleoperation import teleoperation as run_teleoperation
-    config = load_config()
-    run_teleoperation(config, auto_use)
+
 
 @app.command()
 def record(

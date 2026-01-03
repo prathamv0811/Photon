@@ -17,6 +17,15 @@ Photon is a command-line interface for distributed robotic communication, data c
 - Python 3.10+ (Recommended: 3.12)
 - `uv` package manager (recommended) or `pip`
 
+### Enable Auto-completion
+
+To get tab completion for commands and options (Bash, Zsh, Fish, PowerShell):
+
+```bash
+photon --install-completion
+```
+*Note: You may need to restart your shell for changes to take effect.*
+
 ### Install with uv (Recommended)
 
 ```bash
